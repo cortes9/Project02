@@ -83,91 +83,6 @@ erDiagram
         bigint major_id PK, FK
     }
 
-```markdown
-# Study Group Finder API Proposal
-
-## 1. The pitch (one paragraph)
-
-The Study Group Finder API helps college students discover, create, and join study sessions based on courses, buildings, times, and available capacity. Students can browse sessions, filter by course or location, create their own sessions, and join or leave sessions. The Android client needs this API to provide authenticated, shared, and persistent study-group data instead of storing sessions only on individual devices.
-
-## 2. Resources
-
-| Resource | Key fields | Relationships |
-|---|---|---|
-| User | user_id, oauth_subject, name, email, student_year, major_id, is_admin | A User creates study sessions and joins many study sessions |
-| Major | major_id, major_name | A Major is associated with many users and study sessions |
-| Course | course_id, course_code, subject, course_name | A Course has many study sessions |
-| Building | building_id, building_name, room_number | A Building can host many study sessions |
-| Study Session | session_id, creator_id, course_id, building_id, delivery_mode, start_time, end_time, capacity, description, status | A Study Session belongs to one creator and course and has many members |
-| Session Member | user_id, session_id, joined_at | Connects Users and Study Sessions through a many-to-many relationship |
-| Session Major | session_id, major_id | Connects Study Sessions and Majors through a many-to-many relationship |
-
-## 3. ER sketch
-
-Tables, primary and foreign keys, and cardinality. Edit this Mermaid diagram (it renders on GitHub; try changes at https://mermaid.live):
-
-```mermaid
-erDiagram
-    USER ||--o{ STUDY_SESSION : creates
-    USER ||--o{ SESSION_MEMBER : joins
-    STUDY_SESSION ||--o{ SESSION_MEMBER : has
-    STUDY_SESSION }o--|| COURSE : focuses_on
-    STUDY_SESSION }o--o| BUILDING : held_at
-    STUDY_SESSION ||--o{ SESSION_MAJOR : targets
-    MAJOR ||--o{ SESSION_MAJOR : applies_to
-    USER }o--|| MAJOR : studies
-
-    USER {
-        bigint user_id PK
-        string oauth_subject UK
-        string name
-        string email UK
-        string student_year
-        bigint major_id FK
-        boolean is_admin
-    }
-
-    MAJOR {
-        bigint major_id PK
-        string major_name UK
-    }
-
-    COURSE {
-        bigint course_id PK
-        string course_code UK
-        string subject
-        string course_name
-    }
-
-    BUILDING {
-        bigint building_id PK
-        string building_name
-        string room_number
-    }
-
-    STUDY_SESSION {
-        bigint session_id PK
-        bigint creator_id FK
-        bigint course_id FK
-        bigint building_id FK "nullable"
-        string delivery_mode
-        datetime start_time
-        datetime end_time
-        int capacity
-        string description "nullable"
-        string status
-    }
-
-    SESSION_MEMBER {
-        bigint user_id PK, FK
-        bigint session_id PK, FK
-        datetime joined_at
-    }
-
-    SESSION_MAJOR {
-        bigint session_id PK, FK
-        bigint major_id PK, FK
-    }
 ```
 
 ## 4. Endpoints
@@ -204,11 +119,12 @@ Expected error responses include:
 Errors will use RFC 9457 Problem Details with the `application/problem+json` content type.
 
 ## 5. Technical choices
-Database: Supabase.
+Database: Supabase. Supabase also provides shared PostgreSQL access, backups, and a web dashboard for the team.
 
-Login provider: Google  supports the secure PKCE login flow required for apps, and Supabase handles the exchange for us.
 
-Repo layout: Split into two repos. 
+Login provider: Google  supports the secure PKCE login flow required for apps, and Supabase handles the exchange for us. Google supports the Authorization Code flow with PKCE required for native applications, while Supabase handles the authentication exchange.
+
+Repo layout: Split into two repos. This allows the frontend and backend teams to develop, test, and deploy independently.
 
 Frontend: https://github.com/cortes9/Project02
 
@@ -228,7 +144,6 @@ Backend: https://github.com/cortes9/Project02-Backend
 - **Jorman:** Finalize the ER diagram and review the API design.
 - **Luis:** Manage repository and Project board setup, choose the database, and validate OAuth with PKCE.
 
-Project board:
+Project board: https://github.com/users/cortes9/projects/1
 
 Sprint 1 milestone: October 10, 2026
-```
