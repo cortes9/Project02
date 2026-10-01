@@ -204,7 +204,15 @@ Expected error responses include:
 Errors will use RFC 9457 Problem Details with the `application/problem+json` content type.
 
 ## 5. Technical choices
+Database: Supabase.
 
+Login provider: Google  supports the secure PKCE login flow required for apps, and Supabase handles the exchange for us.
+
+Repo layout: Split into two repos. 
+
+Frontend: https://github.com/cortes9/Project02
+
+Backend: https://github.com/cortes9/Project02-Backend
 
 ## 6. Risks
 
