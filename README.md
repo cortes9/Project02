@@ -1,69 +1,103 @@
-# CST 438 Project 02: API Template
+# Campus Study Group Finder (Android Client)
 
-Starter repo for Project 02. **One person per team** clicks **Use this template → Create a new
-repository**, names it after your API, and adds teammates as collaborators.
+An Android application built with **Jetpack Compose**, **Android Credential Manager**, and **Supabase Auth / Postgrest** that helps college students discover, create, and join campus study sessions based on courses, locations, and schedules.
 
-> Replace this README with your own in Sprint 4. The prompt lists what it must contain.
+---
 
-## What's in here
+## Key Features
 
-| Path | What it is | When |
-|---|---|---|
-| `docs/proposal.md` | Proposal template: pitch, resources, ER sketch, endpoints, choices, risks | **Thu 10/1** |
-| `docs/openapi.yaml` | A complete example contract (workout tracker). Replace it with your API. | Sprint 1 |
-| `redocly.yaml` | Lint rules for the contract | Sprint 1 |
-| `.github/ISSUE_TEMPLATE/user_story.md` | Every new issue starts as a user story with acceptance criteria | now |
-| `.github/pull_request_template.md` | Every PR starts with `Closes #` and a test checklist | now |
-| `.gitignore` | Gradle, Android, IntelliJ, Node, and **secrets** (`.env`, keystores, `local.properties`) | now |
+- **Google OAuth Authentication**: Modern native Google Sign-In powered by Android Credential Manager and Supabase Auth (`GoTrue`).
+- **Supabase Backend Integration**: Authenticated user sessions and database persistence via Supabase Postgrest API.
+- **Material 3 UI**: Declarative Jetpack Compose interface with theme support and responsive state management.
 
-Where your code goes is up to you: an `api/` and an `android/` folder in this repo (monorepo),
-or a second repo for the Android app. Write it down in an ADR.
+---
 
-## First 15 minutes
+## Repository Architecture
 
-- [ ] Add teammates: **Settings → Collaborators**
-- [ ] Protect `main`: **Settings → Rules → Rulesets → New branch ruleset**. Target the default branch,
-      require a PR with **2 approvals** (1 for a team of 3), block force pushes. Enforcement: **Active**.
-- [ ] Create milestones `Sprint 1` through `Sprint 4`: **Issues → Milestones**
-- [ ] Create a Project board (Kanban) and link it: **Projects tab → Link a project**
-- [ ] Start `docs/proposal.md` on a branch:
+This project is part of a multi-repository layout:
+* **Frontend App (This Repo)**: [cortes9/Project02](https://github.com/cortes9/Project02)
+* **Backend API / DB Repo**: [cortes9/Project02-Backend](https://github.com/cortes9/Project02-Backend)
+* **Proposal & Specification**: [`docs/proposal.md`](docs/proposal.md)
 
-```bash
-git switch -c docs/proposal
-# edit docs/proposal.md
-git add docs/proposal.md
-git commit -m "Draft proposal"
-git push -u origin docs/proposal
-gh pr create --fill
+---
+
+## Getting Started & Local Setup
+
+### 1. Prerequisites
+- **Android Studio** (2024.1+ recommended) with JDK 11 or JDK 17.
+- **Android Device or Emulator** running API 24+ with **Google Play Services** enabled.
+
+---
+
+### 2. Environment Configuration (`.env.local`)
+
+Secrets and API keys are loaded dynamically into `BuildConfig` at compile time and are ignored by Git.
+
+Create a file named `.env.local` in the project root directory with the following variables:
+
+```properties
+# Supabase Configuration
+SUPABASE_URL=https://<your-project-ref>.supabase.co
+SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+# Google OAuth Web Application Client ID
+WEB_CLIENT_ID=862676647140-q2pc6smjqsm3ur1u1g5652mutvuo9ba0.apps.googleusercontent.com
 ```
 
-## Working with the contract
+> [!CAUTION]
+> Never put Supabase `service_role` keys or direct PostgreSQL database passwords in this Android repository. The Android app connects securely via HTTPS using `SUPABASE_URL` and `SUPABASE_ANON_KEY`.
 
-No installs needed beyond Node (`npx` runs the tools).
+---
 
-```bash
-# Lint: fix every error before you open a PR
-npx @redocly/cli lint docs/openapi.yaml
+### 3. Google OAuth & Supabase Setup for Teammates
 
-# Mock server: a fake API built from the contract, at http://127.0.0.1:4010
-npx @stoplight/prism-cli mock docs/openapi.yaml
+To run Google Sign-In on a new development machine or emulator:
 
-curl -H "Authorization: Bearer x" "http://127.0.0.1:4010/api/v1/workouts?page=0&size=20"
-curl -i http://127.0.0.1:4010/api/v1/workouts          # 401: no token
-curl -H "Authorization: Bearer x" -H "Prefer: code=404" \
-     http://127.0.0.1:4010/api/v1/workouts/42          # force an error response
+1. **Obtain your Debug SHA-1 Fingerprint**:
+   In Android Studio Terminal, run:
+   ```powershell
+   .\gradlew signingReport
+   ```
+2. **Google Cloud Console**:
+   - Ensure an **Android Client ID** exists in Google Cloud Console under the same project with:
+     - Package Name: `com.example.studygroupfinder`
+     - SHA-1 Certificate Fingerprint: *(Output from `signingReport`)*
+   - Verify your **OAuth Consent Screen** is configured and your email is added under **Test users** if in Testing status.
+3. **Supabase Dashboard**:
+   - In **Authentication $\rightarrow$ Providers $\rightarrow$ Google**:
+     - Enable Google Provider.
+     - Add the **Web Application Client ID** and **Client Secret**.
+     - Enable **Skip nonce checks** under Advanced Settings.
+
+---
+
+## App Code Architecture
+
+```
+app/src/main/java/com/example/studygroupfinder/
+├── data/
+│   ├── remote/
+│   │   └── SupabaseClient.kt       # Supabase client singleton (Auth + Postgrest)
+│   └── repository/
+│       └── AuthRepository.kt       # Google ID token exchange with Supabase
+├── ui/
+│   └── auth/
+│       ├── LoginScreen.kt          # Material 3 Compose Login UI
+│       ├── LoginViewModel.kt       # CredentialManager & state flow handler
+│       └── LoginState.kt          # UI state definitions (Idle, Loading, Success, Error)
+└── MainActivity.kt                 # Application entry point
 ```
 
-The mock **validates** your requests and returns the `example:` values from the contract.
-**Nothing is saved**: a POST followed by a GET returns the example, not what you posted. The
-Android emulator reaches it at `http://10.0.2.2:4010`.
+---
 
-To see the contract rendered, paste `docs/openapi.yaml` into https://editor.swagger.io.
+## Building & Running
 
-## Links
+To build the debug APK:
+```powershell
+.\gradlew assembleDebug
+```
 
-- Project 02 prompt and rubric: Canvas → Project 02 module
-- OpenAPI 3.0 spec: https://spec.openapis.org/oas/v3.0.3
-- Prism: https://docs.stoplight.io/docs/prism
-- Mermaid ER diagrams: https://mermaid.js.org/syntax/entityRelationshipDiagram.html
-- RFC 9457 Problem Details: https://www.rfc-editor.org/rfc/rfc9457
+To run tests:
+```powershell
+.\gradlew test
+```

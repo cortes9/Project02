@@ -1,6 +1,7 @@
 package com.example.studygroupfinder.ui.auth
 
 import android.content.Context
+import android.util.Log
 import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.exceptions.GetCredentialException
@@ -9,12 +10,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.studygroupfinder.BuildConfig
 import com.example.studygroupfinder.data.repository.AuthRepository
 import com.example.studygroupfinder.data.repository.AuthRepositoryImpl
-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+import com.google.android.libraries.identity.googleid.GetSignInWithGoogleOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.security.MessageDigest
+import java.util.UUID
 
 class LoginViewModel(
     private val authRepository: AuthRepository = AuthRepositoryImpl()
@@ -38,8 +41,10 @@ class LoginViewModel(
 
     fun handleGoogleSignIn(context: Context) {
         val webClientId = BuildConfig.WEB_CLIENT_ID
+        Log.d("LoginViewModel", "Initiating sign-in with WebClientID: '$webClientId'")
+
         if (webClientId.isBlank() || webClientId.contains("your-google-web-client-id")) {
-            _uiState.value = LoginUiState.Error("Please configure WEB_CLIENT_ID in env.local")
+            _uiState.value = LoginUiState.Error("Please configure WEB_CLIENT_ID in .env.local")
             return
         }
 
@@ -47,14 +52,18 @@ class LoginViewModel(
             _uiState.value = LoginUiState.Loading
 
             try {
-                val googleIdOption = GetGoogleIdOption.Builder()
-                    .setFilterByAuthorizedAccounts(false)
-                    .setServerClientId(webClientId)
-                    .setAutoSelectEnabled(false)
+                val rawNonce = UUID.randomUUID().toString()
+                val bytes = rawNonce.toByteArray()
+                val md = MessageDigest.getInstance("SHA-256")
+                val digest = md.digest(bytes)
+                val hashedNonce = digest.fold("") { str, it -> str + "%02x".format(it) }
+
+                val signInWithGoogleOption = GetSignInWithGoogleOption.Builder(webClientId)
+                    .setNonce(hashedNonce)
                     .build()
 
                 val request = GetCredentialRequest.Builder()
-                    .addCredentialOption(googleIdOption)
+                    .addCredentialOption(signInWithGoogleOption)
                     .build()
 
                 val credentialManager = CredentialManager.create(context)
@@ -64,15 +73,19 @@ class LoginViewModel(
                 val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                 val idToken = googleIdTokenCredential.idToken
 
-                val authResult = authRepository.signInWithGoogleIdToken(idToken)
+                Log.d("LoginViewModel", "Retrieved Google ID Token successfully. Exchanging with Supabase...")
+                val authResult = authRepository.signInWithGoogleIdToken(idToken, rawNonce)
                 authResult.onSuccess { user ->
                     _uiState.value = LoginUiState.Success(user)
                 }.onFailure { exception ->
+                    Log.e("LoginViewModel", "Supabase authentication failed", exception)
                     _uiState.value = LoginUiState.Error(exception.localizedMessage ?: "Supabase sign-in failed")
                 }
             } catch (e: GetCredentialException) {
-                _uiState.value = LoginUiState.Error("Google Sign-In failed: ${e.localizedMessage}")
+                Log.e("LoginViewModel", "CredentialManager failed: type=${e.type}, message=${e.localizedMessage}", e)
+                _uiState.value = LoginUiState.Error("Google Sign-In failed (${e.type}): ${e.localizedMessage}")
             } catch (e: Exception) {
+                Log.e("LoginViewModel", "Unexpected sign-in error", e)
                 _uiState.value = LoginUiState.Error("An error occurred: ${e.localizedMessage}")
             }
         }
