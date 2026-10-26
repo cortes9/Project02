@@ -6,12 +6,23 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
 import com.example.studygroupfinder.ui.auth.LoginScreen
 import com.example.studygroupfinder.ui.auth.LoginViewModel
@@ -26,9 +37,12 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // Keep ViewModels active when Android recreates the screen.
-        val loginViewModel = ViewModelProvider(this)[LoginViewModel::class.java]
-        val sessionViewModel = ViewModelProvider(this)[StudySessionViewModel::class.java]
+        // Keep the ViewModels when Android recreates the screen.
+        val loginViewModel =
+            ViewModelProvider(this)[LoginViewModel::class.java]
+
+        val sessionViewModel =
+            ViewModelProvider(this)[StudySessionViewModel::class.java]
 
         setContent {
             StudyGroupFinderTheme {
@@ -46,11 +60,17 @@ private fun StudyGroupFinderApp(
     loginViewModel: LoginViewModel,
     sessionViewModel: StudySessionViewModel
 ) {
-    // Remember which screen the user is currently viewing.
-    var currentScreen by rememberSaveable { mutableStateOf("login") }
-    var selectedSessionId by rememberSaveable { mutableLongStateOf(0L) }
+    // Remember which screen is open.
+    var currentScreen by rememberSaveable {
+        mutableStateOf("login")
+    }
 
-    // Return to the list from details, or to login from the list.
+    // Remember which study session was selected.
+    var selectedSessionId by rememberSaveable {
+        mutableLongStateOf(0L)
+    }
+
+    // Handle the Android Back button.
     BackHandler(enabled = currentScreen != "login") {
         currentScreen = when (currentScreen) {
             "details" -> "sessions"
@@ -59,16 +79,17 @@ private fun StudyGroupFinderApp(
     }
 
     when (currentScreen) {
+
         "login" -> {
             LoginScreen(
                 viewModel = loginViewModel,
 
-                // After successful login, show study sessions.
+                // Continue after Google login succeeds.
                 onLoginSuccess = {
                     currentScreen = "sessions"
                 },
 
-                // Allow public browsing without Google login.
+                // Browse study sessions without signing in.
                 onBrowseSessions = {
                     currentScreen = "sessions"
                 }
@@ -78,6 +99,8 @@ private fun StudyGroupFinderApp(
         "sessions" -> {
             StudySessionListScreen(
                 viewModel = sessionViewModel,
+
+                // Open the selected session's details.
                 onSessionClick = { sessionId ->
                     selectedSessionId = sessionId
                     currentScreen = "details"
@@ -86,7 +109,7 @@ private fun StudyGroupFinderApp(
         }
 
         "details" -> {
-            StudySessionDetailsScreen(
+            SessionDetailsWithJoinButton(
                 sessionId = selectedSessionId,
                 viewModel = sessionViewModel,
                 onBack = {
@@ -94,5 +117,74 @@ private fun StudyGroupFinderApp(
                 }
             )
         }
+    }
+}
+
+@Composable
+private fun SessionDetailsWithJoinButton(
+    sessionId: Long,
+    viewModel: StudySessionViewModel,
+    onBack: () -> Unit
+) {
+    // Control the message shown when Join is pressed.
+    var showJoinMessage by rememberSaveable(sessionId) {
+        mutableStateOf(false)
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize()
+    ) {
+        // Display the existing study session details.
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+        ) {
+            StudySessionDetailsScreen(
+                sessionId = sessionId,
+                viewModel = viewModel,
+                onBack = onBack
+            )
+        }
+
+        // Keep the Join button below the details.
+        Button(
+            onClick = {
+                showJoinMessage = true
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Text("Join Session")
+        }
+    }
+
+    // Explain that real joining is not connected yet.
+    if (showJoinMessage) {
+        AlertDialog(
+            onDismissRequest = {
+                showJoinMessage = false
+            },
+            title = {
+                Text("Join Session")
+            },
+            text = {
+                Text(
+                    "Joining requires Google sign-in and " +
+                            "a connection to the backend join API. " +
+                            "This feature is not available yet."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showJoinMessage = false
+                    }
+                ) {
+                    Text("OK")
+                }
+            }
+        )
     }
 }
