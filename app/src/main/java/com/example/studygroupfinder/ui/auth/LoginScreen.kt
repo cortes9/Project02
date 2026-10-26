@@ -1,3 +1,4 @@
+
 package com.example.studygroupfinder.ui.auth
 
 import androidx.compose.foundation.layout.Arrangement
@@ -28,8 +29,9 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun LoginScreen(
-    viewModel: LoginViewModel = LoginViewModel(),
-    onLoginSuccess: () -> Unit = {}
+    viewModel: LoginViewModel,
+    onLoginSuccess: () -> Unit = {},
+    onBrowseSessions: () -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
@@ -80,6 +82,7 @@ fun LoginScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     when (val state = uiState) {
+
                         is LoginUiState.Idle -> {
                             Text(
                                 text = "Welcome! Sign in with your campus Google account to get started.",
@@ -89,29 +92,37 @@ fun LoginScreen(
 
                             Spacer(modifier = Modifier.height(24.dp))
 
+                            // Existing Google login button.
                             Button(
-                                onClick = { viewModel.handleGoogleSignIn(context) },
+                                onClick = {
+                                    viewModel.handleGoogleSignIn(context)
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
                             ) {
-                                Text(
-                                    text = "Sign in with Google",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.SemiBold
-                                )
+                                Text("Sign in with Google")
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Browse sessions without signing in.
+                            OutlinedButton(
+                                onClick = onBrowseSessions,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                Text("Browse Study Sessions")
                             }
                         }
 
                         is LoginUiState.Loading -> {
-                            CircularProgressIndicator(
-                                color = MaterialTheme.colorScheme.primary
-                            )
+                            CircularProgressIndicator()
+
                             Spacer(modifier = Modifier.height(16.dp))
-                            Text(
-                                text = "Authenticating with Google & Supabase...",
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+
+                            Text("Authenticating with Google & Supabase...")
                         }
 
                         is LoginUiState.Success -> {
@@ -126,12 +137,12 @@ fun LoginScreen(
 
                             Text(
                                 text = "User: ${state.user.email ?: state.user.id}",
-                                style = MaterialTheme.typography.bodyMedium,
                                 textAlign = TextAlign.Center
                             )
 
                             Spacer(modifier = Modifier.height(24.dp))
 
+                            // Continue normally after successful login.
                             Button(
                                 onClick = onLoginSuccess,
                                 modifier = Modifier
@@ -163,7 +174,6 @@ fun LoginScreen(
 
                             Text(
                                 text = state.message,
-                                style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.error,
                                 textAlign = TextAlign.Center
                             )
@@ -171,12 +181,26 @@ fun LoginScreen(
                             Spacer(modifier = Modifier.height(24.dp))
 
                             Button(
-                                onClick = { viewModel.handleGoogleSignIn(context) },
+                                onClick = {
+                                    viewModel.handleGoogleSignIn(context)
+                                },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(50.dp)
                             ) {
                                 Text("Try Again")
+                            }
+
+                            Spacer(modifier = Modifier.height(12.dp))
+
+                            // Still allow browsing if Google login fails.
+                            OutlinedButton(
+                                onClick = onBrowseSessions,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp)
+                            ) {
+                                Text("Browse Study Sessions")
                             }
                         }
                     }
